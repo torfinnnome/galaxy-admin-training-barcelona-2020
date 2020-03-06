@@ -1,0 +1,48 @@
+---
+- hosts: galaxyservers
+  become: true
+  pre_tasks:
+    - pip:
+        name: passlib
+    - htpasswd:
+        path: /etc/nginx/passwd
+        name: torfn        # Pick a username
+        password: jaujau   # and a password
+        owner: www-data    # nginx on centos
+        group: root
+        mode: 0640    
+    - name: Install Dependencies
+      package:
+        name: ['git', 'make', 'python3-psycopg2', 'virtualenv', 'cgroup-tools']
+    - name: Create the second storage directory
+      file:
+        owner: galaxy
+        group: galaxy
+        path: /data2
+        state: directory
+        mode: '0755'
+  handlers:
+    - name: Restart Galaxy
+      systemd:
+        name: galaxy
+        state: restarted
+  roles:
+    - galaxyproject.postgresql
+    - role: natefoo.postgresql_objects
+      become: true
+      become_user: postgres
+#    - geerlingguy.pip
+#    - atosatto.minio
+    - galaxyproject.galaxy
+    - role: uchida.miniconda
+      become: true
+      become_user: galaxy
+    - usegalaxy_eu.galaxy_systemd
+    - galaxyproject.nginx
+#    - galaxyproject.cvmfs
+#    - usegalaxy_eu.gxadmin
+#    - dj-wasabi.telegraf
+#    - usegalaxy_eu.tiaas2
+    - geerlingguy.docker
+    - usegalaxy_eu.gie_proxy
+

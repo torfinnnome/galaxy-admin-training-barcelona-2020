@@ -1,0 +1,60 @@
+<job_conf>
+    <plugins workers="4">
+        <plugin id="local" type="runner" load="galaxy.jobs.runners.local:LocalJobRunner"/>
+        <plugin id="slurm" type="runner" load="galaxy.jobs.runners.slurm:SlurmJobRunner"/>
+        <plugin id="pulsar_runner" type="runner" load="galaxy.jobs.runners.pulsar:PulsarRESTJobRunner" />
+ 	<plugin id="pulsar_embedded" type="runner" load="galaxy.jobs.runners.pulsar:PulsarEmbeddedJobRunner">
+    	  <param id="pulsar_config">/srv/galaxy/config/pulsar_app.yml</param>
+	</plugin>
+    </plugins>
+    <destinations default="local">
+        <destination id="slurm" runner="slurm"/>
+        <destination id="local" runner="local"/>
+        <destination id="slurm-2c" runner="slurm">
+           <param id="nativeSpecification">--nodes=1 --ntasks=2</param>
+        </destination>
+        <destination id="dynamic_admin_only" runner="dynamic">
+            <param id="type">python</param>
+            <param id="function">admin_only</param>
+        </destination>    
+        <destination id="dtd" runner="dynamic">
+            <param id="type">dtd</param>
+        </destination>
+        <destination id="dynamic_cores_time" runner="dynamic">
+            <param id="type">python</param>
+            <param id="function">dynamic_cores_time</param>
+        </destination>
+        <destination id="pulsar" runner="pulsar_runner" >
+          <param id="url">http://115.146.94.129:80/</param>
+          <param id="private_token">your_private_token_here</param>
+        </destination>
+        <destination id="sorting_hat" runner="dynamic">
+          <param id="type">python</param>
+          <param id="function">sorting_hat</param>
+        </destination>
+        <destination id="interactive_local" runner="pulsar_embedded">
+            <param id="docker_enabled">true</param>
+            <param id="docker_volumes">$defaults</param>
+            <param id="docker_sudo">false</param>
+            <param id="docker_net">bridge</param>
+            <param id="docker_auto_rm">true</param>
+            <param id="docker_set_user"></param>
+            <param id="require_container">true</param>
+            <param id="container_monitor_result">callback</param>
+            <env id="REQUESTS_CA_BUNDLE">/etc/ssl/certs/ca-certificates.crt</env>
+        </destination>
+    </destinations>
+    <tools>
+       <!-- <tool id="testing" destination="slurm-2c"/> 
+        <tool id="testing" destination="dynamic_admin_only" />
+        <tool id="testing" destination="dtd"/> -->
+        <tool id="testing" destination="dynamic_cores_time" resources="testing"/>
+        <tool id="bwa" destination="slurm"/>
+        <tool id="bwa_mem" destination="pulsar"/>
+        <tool id="upload1" destination="slurm"/>
+        <tool destination="interactive_local" id="interactive_tool_ethercalc" />
+    </tools>    
+    <resources>
+        <group id="testing">cores,time</group>
+    </resources>
+</job_conf>

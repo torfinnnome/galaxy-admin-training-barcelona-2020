@@ -1,0 +1,5 @@
+---
+
+gxadmin_dir: "~/.gxadmin"
+gxadmin_bin_dir: "~/bin"
+gxadmin_create_bin_dir: true

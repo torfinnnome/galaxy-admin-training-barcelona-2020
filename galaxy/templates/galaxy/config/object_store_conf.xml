@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<object_store type="hierarchical">
+    <backends>
+        <backend id="newdata" type="disk" order="1">
+            <files_dir path="/data2"/>
+            <extra_dir type="job_work" path="/data2/job_work_dir"/>
+        </backend>
+        <backend id="olddata" type="disk" order="1">
+            <files_dir path="/data"/>
+            <extra_dir type="job_work" path="/data/job_work_dir"/>
+        </backend>
+<!--        <object_store id="swifty" type="swift" order="0">
+            <auth access_key="{{ minio_access_key }}" secret_key="{{ minio_secret_key }}" />
+            <bucket name="galaxy" use_reduced_redundancy="False" max_chunk_size="250"/>
+            <connection host="127.0.0.1" port="9091" is_secure="False" conn_path="" multipart="True"/>
+            <cache path="{{ galaxy_mutable_data_dir }}/database/object_store_cache" size="1000" />
+            <extra_dir type="job_work" path="{{ galaxy_mutable_data_dir }}/database/job_working_directory_swift"/>
+            <extra_dir type="temp" path="{{ galaxy_mutable_data_dir }}/database/tmp_swift"/>
+        </object_store> -->
+    </backends>
+</object_store>

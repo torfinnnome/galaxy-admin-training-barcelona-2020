@@ -1,0 +1,11 @@
+[galaxyservers]
+gat-36.student.galaxy.training ansible_connection=local
+
+[pulsarservers]
+115.146.94.129
+
+[monitoring]
+gat-36.student.galaxy.training ansible_connection=local
+
+[build]
+localhost ansible_connection=local

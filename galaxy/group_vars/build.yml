@@ -1,0 +1,7 @@
+jenkins_http_port: 4000
+jenkins_admin_username: admin
+# Please change at least the password to something more suitable
+jenkins_admin_password: hywfqhFwP1UG5w
+jenkins_url_prefix: /jenkins
+jenkins_plugins:
+- matrix-auth

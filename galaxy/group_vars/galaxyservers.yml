@@ -1,0 +1,259 @@
+---
+# python3 support
+pip_virtualenv_command: /usr/bin/python3 -m virtualenv # usegalaxy_eu.certbot, usegalaxy_eu.tiaas2, galaxyproject.galaxy
+certbot_virtualenv_package_name: python3-virtualenv    # usegalaxy_eu.certbot
+pip_package: python3-pip                               # geerlingguy.pip
+
+# PostgreSQL
+postgresql_objects_users:
+  - name: galaxy
+  - name: telegraf
+    password: null
+  - name: tiaas
+    password: null
+postgresql_objects_databases:
+  - name: galaxy
+    owner: galaxy
+
+# And this to grant telegraf privileges to
+# SELECT values from the Galaxy database
+postgresql_objects_privileges:
+  - database: galaxy
+    roles: telegraf
+    privs: SELECT
+    objs: ALL_IN_SCHEMA
+  - database: galaxy
+    roles: tiaas
+    objs: galaxy_user,galaxy_session,job
+    type: table
+    privs: SELECT
+  - database: galaxy
+    roles: tiaas
+    objs: user_group_association,galaxy_group,role,group_role_association
+    type: table
+    privs: SELECT,INSERT
+  - database: galaxy
+    roles: tiaas
+    objs: role_id_seq,galaxy_group_id_seq,group_role_association_id_seq,user_group_association_id_seq
+    type: sequence
+    privs: USAGE,SELECT
+
+# Galaxy
+galaxy_create_user: true
+galaxy_separate_privileges: true
+galaxy_manage_paths: true
+galaxy_layout: root-dir
+galaxy_root: /srv/galaxy
+galaxy_user: {name: galaxy, shell: /bin/bash}
+galaxy_commit_id: release_20.01
+galaxy_config_style: yaml
+galaxy_force_checkout: true
+miniconda_prefix: "{{ galaxy_tool_dependency_dir }}/_conda"
+miniconda_version: "4.6.14"
+
+galaxy_job_config_file: "{{ galaxy_config_dir }}/job_conf.xml"
+galaxy_job_metrics_config_file: "{{ galaxy_config_dir }}/job_metrics_conf.xml"
+
+galaxy_config:
+  galaxy:
+    brand: "usegalaxy.no"
+    admin_users: torfinn.nome@nmbu.no
+    require_login: true
+    allow_user_impersonation: true
+    #use_remote_user: true
+    #remote_user_maildomain: "{{ inventory_hostname }}"
+    #remote_user_secret: jaujaujau
+    enable_quotas: true
+    database_connection: "postgresql:///galaxy?host=/var/run/postgresql"
+    file_path: /data
+    check_migrate_tools: false
+    #tool_data_path: "{{ galaxy_mutable_data_dir }}/tool-data"
+    #tool_data_table_config_path:
+    #  - /cvmfs/data.galaxyproject.org/byhand/location/tool_data_table_conf.xml
+    #  - /cvmfs/data.galaxyproject.org/managed/location/tool_data_table_conf.xml
+    enable_data_manager_user_view: true
+    galaxy_data_manager_data_path: "{{ galaxy_mutable_data_dir }}/tool-data"
+    job_config_file: "{{ galaxy_job_config_file }}"
+    interactivetools_enable: true
+    interactivetools_map: "{{ gie_proxy_sessions_path }}"
+    tool_destinations_config_file: "{{ galaxy_config_dir }}/tool_destinations.yml"
+    job_resource_params_file: "{{ galaxy_config_dir }}/job_resource_params_conf.xml"
+    object_store_config_file: "{{ galaxy_config_dir }}/object_store_conf.xml"
+    job_metrics_config_file: "{{ galaxy_job_metrics_config_file }}"
+    statsd_host: localhost
+    statsd_influxdb: true
+    galaxy_infrastructure_url: "https://{{ inventory_hostname }}/"
+
+  uwsgi:
+    socket: 127.0.0.1:8080
+    buffer-size: 16384
+    processes: 1
+    threads: 4
+    offload-threads: 2
+    static-map:
+      - /static/style={{ galaxy_server_dir }}/static/style/blue
+      - /static={{ galaxy_server_dir }}/static
+      - /favicon.ico={{ galaxy_server_dir }}/static/favicon.ico
+    static-safe: client/galaxy/images
+    master: true
+    virtualenv: "{{ galaxy_venv_dir }}"
+    pythonpath: "{{ galaxy_server_dir }}/lib"
+    module: galaxy.webapps.galaxy.buildapp:uwsgi_app()
+    thunder-lock: true
+    die-on-term: true
+    hook-master-start:
+      - unix_signal:2 gracefully_kill_them_all
+      - unix_signal:15 gracefully_kill_them_all
+    py-call-osafterfork: true
+    enable-threads: true
+    mule:
+      - lib/galaxy/main.py
+      - lib/galaxy/main.py
+    farm: job-handlers:1,2
+
+galaxy_tool_config_files:
+  - "{{ galaxy_server_dir }}/config/tool_conf.xml.sample"
+  - "{{ galaxy_config_dir }}/tool_conf_interactive.xml"
+
+galaxy_config_files:
+  # ... possible existing config file definitions
+  - src: files/galaxy/config/job_conf.xml
+    dest: "{{ galaxy_job_config_file }}"
+  - src: files/galaxy/config/tool_destinations.yml
+    dest: "{{ galaxy_config['galaxy']['tool_destinations_config_file'] }}"
+  - src: files/galaxy/config/job_resource_params_conf.xml
+    dest: "{{ galaxy_config['galaxy']['job_resource_params_file'] }}"
+  - src: templates/galaxy/config/object_store_conf.xml
+    dest: "{{ galaxy_config.galaxy.object_store_config_file }}"
+  - src: templates/galaxy/config/reports.yml
+    dest: "{{ galaxy_config_dir }}/reports.yml"
+  - src: files/galaxy/config/job_metrics_conf.xml
+    dest: "{{ galaxy_job_metrics_config_file }}"
+  - src: files/galaxy/config/tool_conf_interactive.xml
+    dest: "{{ galaxy_config_dir }}/tool_conf_interactive.xml"
+
+galaxy_config_templates:
+  - src: templates/galaxy/config/pulsar_app.yml.j2
+    dest: "{{ galaxy_config_dir }}/pulsar_app.yml"
+
+galaxy_local_tools:
+- testing.xml
+
+galaxy_dynamic_job_rules:
+  - my_rules.py
+  - map_resources.py
+  - hogwarts.py
+
+galaxy_systemd_zergling_env: DRMAA_LIBRARY_PATH="/usr/lib/slurm-drmaa/lib/libdrmaa.so.1"
+
+# systemd
+galaxy_systemd_mode: mule
+galaxy_zergpool_listen_addr: 127.0.0.1:8080
+galaxy_restart_handler_name: "Restart Galaxy"
+galaxy_systemd_reports: true
+
+# Certbot
+certbot_auto_renew_hour: "{{ 21 |random(seed=inventory_hostname)  }}"
+certbot_auto_renew_minute: "{{ 42 |random(seed=inventory_hostname)  }}"
+#certbot_auth_method: --webroot
+certbot_install_method: virtualenv
+certbot_auto_renew: yes
+certbot_auto_renew_user: root
+certbot_environment: staging
+certbot_well_known_root: /srv/nginx/_well-known_root
+certbot_share_key_users:
+  - nginx
+certbot_post_renewal: |
+    systemctl restart nginx || true
+certbot_domains:
+ - "{{ inventory_hostname }}"
+ - "{{ inventory_hostname }}"
+ - "*.interactivetoolentrypoint.interactivetool.{{ inventory_hostname }}"
+certbot_agree_tos: --agree-tos
+certbot_dns_provider: rfc2136
+certbot_dns_credentials:
+  server: ns-training.galaxyproject.org
+  port: 53
+  name: certbot-training.
+  secret: eo8Qr0wzqBXDuiw2A5MD/cODDSAn6JO+0vuSMPV4gRqrIXqLX14xyJidskhX9KGnNF/rBh58S57P3yAo0bO9NA==
+  algorithm: HMAC-SHA512
+
+
+# NGINX
+nginx_selinux_allow_local_connections: true
+nginx_servers:
+  - redirect-ssl
+nginx_enable_default_server: false
+nginx_ssl_servers:
+  - galaxy
+  - galaxy-gie-proxy
+nginx_conf_http:
+  client_max_body_size: 1g
+nginx_ssl_role: usegalaxy_eu.certbot
+nginx_conf_ssl_certificate: /etc/ssl/certs/fullchain.pem
+nginx_conf_ssl_certificate_key: /etc/ssl/user/privkey-nginx.pem
+
+# CVMFS vars
+cvmfs_role: client
+galaxy_cvmfs_repos_enabled: config-repo
+cvmfs_quota_limit: 50
+#galaxy_cvmfs_server_urls:
+#   - domain: galaxyproject.org
+#     urls:
+#          - "http://invivo.hpc.uio.no/cvmfs/@fqrn@"
+#          - "http://cvmfs1-tacc0.galaxyproject.org/cvmfs/@fqrn@"
+#          - "http://cvmfs1-iu0.galaxyproject.org/cvmfs/@fqrn@"
+#          - "http://cvmfs1-psu0.galaxyproject.org/cvmfs/@fqrn@"
+#          - "http://cvmfs1-ufr0.galaxyproject.eu/cvmfs/@fqrn@"
+#   - domain: singularity.galaxyproject.org
+#     urls:
+#          - "http://invivo.hpc.uio.no/cvmfs/@fqrn@"
+#          - "http://cvmfs1-ufr0.galaxyproject.eu/cvmfs/@fqrn@"
+#          - "http://galaxy.jrc.ec.europa.eu:8008/cvmfs/@fqrn@"
+
+minio_server_datadirs: ["/minio-test"]
+minio_access_key: "my-access-key"
+minio_secret_key: "my-super-extra-top-secret-key"
+
+# Configure locations for gxadmin that all
+# users can access
+gxadmin_dir: /opt/gxadmin
+gxadmin_bin_dir: /usr/bin
+
+telegraf_plugins_extra:
+  listen_galaxy_routes:
+    plugin: "statsd"
+    config:
+      - service_address = ":8125"
+      - metric_separator = "."
+      - allowed_pending_messages = 10000
+  monitor_galaxy_queue:
+    plugin: "exec"
+    config:
+      - commands = ["/usr/bin/env PGDATABASE=galaxy /usr/bin/gxadmin iquery queue-overview --short-tool-id"]
+      - timeout = "10s"
+      - data_format = "influx"
+      - interval = "15s"
+
+# TIaaS setup
+tiaas_dir: /opt/tiaas
+tiaas_user: tiaas
+tiaas_group: tiaas
+tiaas_version: master
+tiaas_admin_user: admin
+tiaas_admin_pass: changeme 
+
+# Interactive Tools
+docker_install_compose: false
+docker_users:
+  - "{{ galaxy_user.name }}"
+
+gie_proxy_dir: /srv/galaxy/gie-proxy/proxy
+gie_proxy_git_version: ie2
+gie_proxy_setup_nodejs: nodeenv
+gie_proxy_virtulenv_command: "{{ pip_virtualenv_command }}"
+gie_proxy_nodejs_version: "10.13.0"
+gie_proxy_virtualenv: /srv/galaxy/gie-proxy/venv
+gie_proxy_setup_service: systemd
+gie_proxy_sessions_path: "{{ galaxy_mutable_data_dir }}/interactivetools_map.sqlite"
+
